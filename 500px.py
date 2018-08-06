@@ -47,6 +47,7 @@ def printToLog(string):
         f.write(logTime + ' - ' + string + '\n')
     print(logTime + ' - ' + string)
 
+#从本地缓存文件中加载用户列表，放到全局变量数组中
 def retrieveLists():
     global pendingFilePath, acceptedFilePath, ignoredFilePath
     global pendingFollowList, acceptedFollowList, ignoredFollowList
@@ -60,6 +61,7 @@ def retrieveLists():
         with open(ignoredFilePath, 'r') as f:
             ignoredFollowList = json.loads(f.read())
 
+# 检查一个用户是否存在于缓存的Pending用户列表中
 def isUserPending(targetUserName):
     global pendingFollowList
     for i, v in enumerate(pendingFollowList):
@@ -67,6 +69,7 @@ def isUserPending(targetUserName):
             return True
     return False
 
+# 检查一个用户是否存在于缓存的accepted用户列表中
 def isUserAccepted(targetUserName):
     global acceptedFollowList
     for i, v in enumerate(acceptedFollowList):
@@ -74,6 +77,7 @@ def isUserAccepted(targetUserName):
             return True
     return False
 
+# 检查一个用户是否存在于缓存的Ignored用户列表中
 def isUserIgnored(targetUserName):
     global ignoredFollowList
     userIgnored = False
@@ -82,6 +86,7 @@ def isUserIgnored(targetUserName):
             return True
     return False
 
+# 关注一个用户，并在本次已关注数量计数器上加一
 def followUser(targetUserName):
     global userSession, numFollowsDone, csrfHeaders
     continueLoop = True
@@ -108,6 +113,7 @@ def followUser(targetUserName):
             time.sleep(5)
     time.sleep(20)
 
+//往Pending用户列表中增加一个用户（同时更新缓存文件）
 def addUserToPendingList(targetUserName):
     global pendingFollowList, pendingFilePath
     if targetUserName in pendingFollowList:
@@ -164,7 +170,7 @@ def getFollowing():
         if pageNum == followingPage_json['friends_pages']:
             break
         pageNum += 1
-        time.sleep(20)
+        time.sleep(2)
     return following
 
 def getFollowers():
@@ -172,13 +178,21 @@ def getFollowers():
     pageNum = 1
     followers = []
     while True:
-        followersPage = requestWebPage('GET', 'https://api.500px.com/v1/users/' + str(myUserInfo['id']) + '/followers?fullformat=0&page=' + str(pageNum) + '&rpp=50')
+        followersPage = requestWebPage('GET', 'https://api.500px.com/v1/users/' + str(myUserInfo['id']) + '/followers?fullformat=1&page=' + str(pageNum) + '&rpp=100')
         followersPage_json = json.loads(followersPage.text)
+        printToLog('Loaded followers page' + str(pageNum))
+        printToLog('Unfollowing junior users.')
+        for user in followersPage_json:
+            if user['followers_count'] < 350:
+                unfollowUser(user['username'])
+                printToLog('Removed user ' + user['username'])
+                followersPage_json.remove(user)
+                
         followers += followersPage_json['followers']
         if pageNum == followersPage_json['followers_pages']:
             break
         pageNum += 1
-        time.sleep(20)
+        time.sleep(2)
     return followers
 
 def requestWebPage(method, url, data = {}, headers = {}, checkStatusCode = True):
